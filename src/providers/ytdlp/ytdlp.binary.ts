@@ -55,15 +55,17 @@ export class YtDlpBinaryManager {
     const isWin = process.platform === 'win32';
     const binaryExt = isWin ? '.exe' : '';
 
+    // Build candidate paths with explicit full paths first
+    const binDir = path.join(process.cwd(), 'bin');
     const candidatePaths = [
       config.providers.ytdlp.binaryPath,
-      path.join(process.cwd(), 'bin', `yt-dlp${binaryExt}`),
-      path.join(process.cwd(), 'bin', 'yt-dlp'),
+      path.join(binDir, `yt-dlp${binaryExt}`),
+      path.join(binDir, 'yt-dlp'),
       '/usr/local/bin/yt-dlp',
       '/usr/bin/yt-dlp',
-      'yt-dlp',
     ];
 
+    // First try all explicit file paths
     for (const candidate of candidatePaths) {
       if (!candidate) continue;
 
@@ -90,6 +92,22 @@ export class YtDlpBinaryManager {
       }
     }
 
+    // Finally try PATH lookup as fallback
+    try {
+      const { stdout } = await execFileAsync('yt-dlp', ['--version'], { timeout: 5000 });
+      const ver = stdout.trim().split('\n').pop()?.trim() || 'unknown';
+      if (ver) {
+        this.cachedPath = 'yt-dlp';
+        this.isAvailable = true;
+        this.version = ver;
+        this.lastCheckTime = now;
+        logger.info(`Resolved yt-dlp binary via PATH: yt-dlp (version: ${ver})`);
+        return { available: true, path: 'yt-dlp', version: ver };
+      }
+    } catch {
+      // PATH lookup failed
+    }
+
     this.isAvailable = false;
     this.cachedPath = null;
     this.version = 'not found';
@@ -99,7 +117,7 @@ export class YtDlpBinaryManager {
 
   /**
    * Resolves supported JavaScript runtime for YouTube challenge solving.
-   * Prefers Deno 2.x, or Node.js 22+. Explicitly rejects Node <= 20.
+   * Prefers Deno 2.x, or Node.js 22+. Falls back to Node.js 20 with warning.
    */
   static async resolveJsRuntime(): Promise<JsRuntimeInfo> {
     const now = Date.now();
@@ -155,14 +173,23 @@ export class YtDlpBinaryManager {
             version,
             isSupported: true,
           };
+        } else if (major >= 18) {
+          // Node 18-20 can work for basic operations but may fail on YouTube challenge
+          this.jsRuntimeInfo = {
+            available: true,
+            name: 'node',
+            version,
+            isSupported: true,
+            warning: `Node.js ${version} may have limited support for YouTube challenge solving. Deno 2.x or Node 22+ recommended.`,
+          };
         } else if (major > 0) {
-          // Node 20 or lower is NOT supported for yt-dlp EJS runtime
+          // Node below 18 is NOT supported
           this.jsRuntimeInfo = {
             available: false,
             name: 'node',
             version,
             isSupported: false,
-            warning: `Node.js ${version} is below version 22. Deno 2.x or Node 22+ is required for yt-dlp YouTube challenge solving.`,
+            warning: `Node.js ${version} is below version 18. Deno 2.x or Node 18+ is required for yt-dlp.`,
           };
         }
         this.lastJsCheckTime = now;
@@ -176,7 +203,7 @@ export class YtDlpBinaryManager {
       available: false,
       name: 'none',
       isSupported: false,
-      warning: 'No supported JavaScript runtime (Deno 2.x or Node 22+) detected on host system.',
+      warning: 'No supported JavaScript runtime (Deno 2.x or Node 18+) detected on host system.',
     };
     this.lastJsCheckTime = now;
     return this.jsRuntimeInfo;
