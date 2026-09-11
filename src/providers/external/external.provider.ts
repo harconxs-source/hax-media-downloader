@@ -20,6 +20,25 @@ export class ExternalApiProvider extends BaseProvider {
     return url.replace(/\/+$/, '');
   }
 
+  /**
+   * Normalizes API key to ensure proper Bearer token format.
+   * Accepts: "TOKEN", "Bearer TOKEN", "bearer TOKEN" (case-insensitive)
+   * Returns: "Bearer TOKEN" format without duplication
+   */
+  private normalizeApiKey(apiKey?: string): string | undefined {
+    if (!apiKey) return undefined;
+    
+    const trimmed = apiKey.trim();
+    const bearerPattern = /^bearer\s+/i;
+    
+    // Remove any existing "Bearer " prefix (case-insensitive)
+    const cleanToken = trimmed.replace(bearerPattern, '').trim();
+    
+    if (!cleanToken) return undefined;
+    
+    return `Bearer ${cleanToken}`;
+  }
+
   async healthCheck(): Promise<ProviderHealth> {
     if (!config.providers.external.enabled) {
       return {
@@ -46,8 +65,9 @@ export class ExternalApiProvider extends BaseProvider {
       const headers: Record<string, string> = {
         Accept: 'application/json',
       };
-      if (config.providers.external.apiKey) {
-        headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+      const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+      if (normalizedKey) {
+        headers[config.providers.external.apiHeader] = normalizedKey;
       }
 
       const res = await fetch(`${baseUrl}/health`, {
@@ -108,8 +128,9 @@ export class ExternalApiProvider extends BaseProvider {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
-    if (config.providers.external.apiKey) {
-      headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+    const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+    if (normalizedKey) {
+      headers[config.providers.external.apiHeader] = normalizedKey;
     }
 
     try {
@@ -170,20 +191,16 @@ export class ExternalApiProvider extends BaseProvider {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
-    if (config.providers.external.apiKey) {
-      headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+    const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+    if (normalizedKey) {
+      headers[config.providers.external.apiHeader] = normalizedKey;
     }
 
     try {
       const res = await fetch(`${baseUrl}/download`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          url,
-          type: options?.type || 'video',
-          quality: options?.quality || '720p',
-          format: options?.format || 'mp4',
-        }),
+        body: JSON.stringify({ url }),
         signal: controller.signal,
       });
 
