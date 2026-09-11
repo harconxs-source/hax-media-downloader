@@ -46,8 +46,9 @@ export class CobaltProvider extends BaseProvider {
       const headers: Record<string, string> = {
         Accept: 'application/json',
       };
-      if (config.providers.cobalt.apiKey) {
-        headers['Authorization'] = `Bearer ${config.providers.cobalt.apiKey}`;
+      const normalizedKey = this.normalizeApiKey(config.providers.cobalt.apiKey);
+      if (normalizedKey) {
+        headers['Authorization'] = normalizedKey;
       }
 
       // Check serverInfo or root
@@ -88,7 +89,7 @@ export class CobaltProvider extends BaseProvider {
         provider: this.name,
         available: false,
         latencyMs,
-        statusMessage: `Cobalt API returned status ${res?.status ?? 'failed'}`,
+        statusMessage: `Cobalt API returned status ${res?.status ?? 'unavailable'}`,
       };
     } catch (err: unknown) {
       return {
@@ -97,6 +98,25 @@ export class CobaltProvider extends BaseProvider {
         statusMessage: `Cobalt connection failed: ${(err as Error).message}`,
       };
     }
+  }
+
+  /**
+   * Normalizes API key to ensure proper Bearer token format.
+   * Accepts: "TOKEN", "Bearer TOKEN", "bearer TOKEN" (case-insensitive)
+   * Returns: "Bearer TOKEN" format without duplication
+   */
+  private normalizeApiKey(apiKey?: string): string | undefined {
+    if (!apiKey) return undefined;
+    
+    const trimmed = apiKey.trim();
+    const bearerPattern = /^bearer\s+/i;
+    
+    // Remove any existing "Bearer " prefix (case-insensitive)
+    const cleanToken = trimmed.replace(bearerPattern, '').trim();
+    
+    if (!cleanToken) return undefined;
+    
+    return `Bearer ${cleanToken}`;
   }
 
   async getInfo(url: string, options?: DownloadOptions): Promise<MediaInfo> {
@@ -163,8 +183,9 @@ export class CobaltProvider extends BaseProvider {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
-    if (config.providers.cobalt.apiKey) {
-      headers['Authorization'] = `Bearer ${config.providers.cobalt.apiKey}`;
+    const normalizedKey = this.normalizeApiKey(config.providers.cobalt.apiKey);
+    if (normalizedKey) {
+      headers['Authorization'] = normalizedKey;
     }
 
     const controller = new AbortController();
