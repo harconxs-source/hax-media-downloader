@@ -2554,7 +2554,7 @@ function isSafeUrl(rawUrl) {
   } catch {
     return { safe: false, reason: "Invalid URL syntax" };
   }
-  if (/[\0\r\n`$<>|]/.test(rawUrl) || /;.*(\s|rm|bash|sh|exec)/i.test(rawUrl) || /;$/.test(rawUrl.trim())) {
+  if (/[\0\r\n`$<>|]/.test(rawUrl) || /;.*(\s|rm|bash|sh|exec)/i.test(rawUrl) || /;$/.test(rawUrl.trim()) || /"/.test(rawUrl) || /\s&&\s/.test(rawUrl) || /\s\|\|\s/.test(rawUrl)) {
     return { safe: false, reason: "URL contains illegal or dangerous characters" };
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {

@@ -99,7 +99,15 @@ export function isSafeUrl(rawUrl: string): { safe: boolean; reason?: string } {
   }
 
   // Disallow control characters, null bytes, backticks, pipe, or shell injection sequences
-  if (/[\0\r\n`$<>|]/.test(rawUrl) || /;.*(\s|rm|bash|sh|exec)/i.test(rawUrl) || /;$/.test(rawUrl.trim())) {
+  // Also block double quotes, semicolons followed by commands, and shell operators
+  if (
+    /[\0\r\n`$<>|]/.test(rawUrl) || 
+    /;.*(\s|rm|bash|sh|exec)/i.test(rawUrl) || 
+    /;$/.test(rawUrl.trim()) ||
+    /"/.test(rawUrl) ||
+    /\s&&\s/.test(rawUrl) ||
+    /\s\|\|\s/.test(rawUrl)
+  ) {
     return { safe: false, reason: 'URL contains illegal or dangerous characters' };
   }
 
