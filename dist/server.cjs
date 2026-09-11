@@ -1521,8 +1521,9 @@ var CobaltProvider = class extends BaseProvider {
       const headers = {
         Accept: "application/json"
       };
-      if (config.providers.cobalt.apiKey) {
-        headers["Authorization"] = `Bearer ${config.providers.cobalt.apiKey}`;
+      const normalizedKey = this.normalizeApiKey(config.providers.cobalt.apiKey);
+      if (normalizedKey) {
+        headers["Authorization"] = normalizedKey;
       }
       const res = await fetch(`${baseUrl}/api/serverInfo`, {
         method: "GET",
@@ -1557,7 +1558,7 @@ var CobaltProvider = class extends BaseProvider {
         provider: this.name,
         available: false,
         latencyMs,
-        statusMessage: `Cobalt API returned status ${res?.status ?? "failed"}`
+        statusMessage: `Cobalt API returned status ${res?.status ?? "unavailable"}`
       };
     } catch (err) {
       return {
@@ -1566,6 +1567,19 @@ var CobaltProvider = class extends BaseProvider {
         statusMessage: `Cobalt connection failed: ${err.message}`
       };
     }
+  }
+  /**
+   * Normalizes API key to ensure proper Bearer token format.
+   * Accepts: "TOKEN", "Bearer TOKEN", "bearer TOKEN" (case-insensitive)
+   * Returns: "Bearer TOKEN" format without duplication
+   */
+  normalizeApiKey(apiKey) {
+    if (!apiKey) return void 0;
+    const trimmed = apiKey.trim();
+    const bearerPattern = /^bearer\s+/i;
+    const cleanToken = trimmed.replace(bearerPattern, "").trim();
+    if (!cleanToken) return void 0;
+    return `Bearer ${cleanToken}`;
   }
   async getInfo(url, options) {
     const platform = detectPlatform(url);
@@ -1621,8 +1635,9 @@ var CobaltProvider = class extends BaseProvider {
       "Content-Type": "application/json",
       Accept: "application/json"
     };
-    if (config.providers.cobalt.apiKey) {
-      headers["Authorization"] = `Bearer ${config.providers.cobalt.apiKey}`;
+    const normalizedKey = this.normalizeApiKey(config.providers.cobalt.apiKey);
+    if (normalizedKey) {
+      headers["Authorization"] = normalizedKey;
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -1701,6 +1716,19 @@ var ExternalApiProvider = class extends BaseProvider {
     if (!url || !url.startsWith("http")) return null;
     return url.replace(/\/+$/, "");
   }
+  /**
+   * Normalizes API key to ensure proper Bearer token format.
+   * Accepts: "TOKEN", "Bearer TOKEN", "bearer TOKEN" (case-insensitive)
+   * Returns: "Bearer TOKEN" format without duplication
+   */
+  normalizeApiKey(apiKey) {
+    if (!apiKey) return void 0;
+    const trimmed = apiKey.trim();
+    const bearerPattern = /^bearer\s+/i;
+    const cleanToken = trimmed.replace(bearerPattern, "").trim();
+    if (!cleanToken) return void 0;
+    return `Bearer ${cleanToken}`;
+  }
   async healthCheck() {
     if (!config.providers.external.enabled) {
       return {
@@ -1724,8 +1752,9 @@ var ExternalApiProvider = class extends BaseProvider {
       const headers = {
         Accept: "application/json"
       };
-      if (config.providers.external.apiKey) {
-        headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+      const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+      if (normalizedKey) {
+        headers[config.providers.external.apiHeader] = normalizedKey;
       }
       const res = await fetch(`${baseUrl}/health`, {
         method: "GET",
@@ -1778,8 +1807,9 @@ var ExternalApiProvider = class extends BaseProvider {
       "Content-Type": "application/json",
       Accept: "application/json"
     };
-    if (config.providers.external.apiKey) {
-      headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+    const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+    if (normalizedKey) {
+      headers[config.providers.external.apiHeader] = normalizedKey;
     }
     try {
       const res = await fetch(`${baseUrl}/info`, {
@@ -1833,19 +1863,15 @@ var ExternalApiProvider = class extends BaseProvider {
       "Content-Type": "application/json",
       Accept: "application/json"
     };
-    if (config.providers.external.apiKey) {
-      headers[config.providers.external.apiHeader] = config.providers.external.apiKey;
+    const normalizedKey = this.normalizeApiKey(config.providers.external.apiKey);
+    if (normalizedKey) {
+      headers[config.providers.external.apiHeader] = normalizedKey;
     }
     try {
       const res = await fetch(`${baseUrl}/download`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          url,
-          type: options?.type || "video",
-          quality: options?.quality || "720p",
-          format: options?.format || "mp4"
-        }),
+        body: JSON.stringify({ url }),
         signal: controller.signal
       });
       if (!res.ok) {
